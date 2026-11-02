@@ -1,12 +1,136 @@
-const canvas = document.getElementById("gameCanvas");
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game - Server Authoritative</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        canvas {
+            background-color: #000000;
+            border: 2px solid #444;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+            margin: 10px 0;
+        }
+        .controls {
+            margin-top: 15px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 0 10px;
+        }
+        button:hover { background-color: #45a049; }
+        button.reset { background-color: #f44336; }
+        button.reset:hover { background-color: #d32f2f; }
+        #statusDisplay {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff9800;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Snake Game</h1>
+    <div id="statusDisplay">Đang tải...</div>
+    
+    <!-- Lưới 40x40, mỗi ô 15px -> Canvas 600x600 -->
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+    <div class="controls">
+        <button onclick="startGame()">Bắt đầu</button>
+        <button class="reset" onclick="resetGame()">Làm mới</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         const statusDisplay = document.getElementById("statusDisplay");
         
-        const TILE_SIZE = 15;
-        
-        // THAY ĐỔI: Tự động trỏ API về đúng tên miền đang chạy giao diện
-        const SERVER_URL = window.location.origin; 
-        
+        const TILE_SIZE = 15; // Kích thước mỗi ô lưới
+        const SERVER_URL = window.location.origin; // Tự động trỏ API về đúng tên miền
         let pollingInterval = null;
 
-        // ... (Giữ nguyên toàn bộ các hàm vẽ game và gọi API bên dưới)
+        // 1. Hàm vẽ Game lên Canvas
+        function drawGame(engineState) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            statusDisplay.innerText = engineState.status;
+
+            // Vẽ mồi (màu đỏ)
+            ctx.fillStyle = "red";
+            ctx.fillRect(engineState.food.x * TILE_SIZE, engineState.food.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+
+            // Vẽ rắn (màu xanh lá)
+            ctx.fillStyle = "lime";
+            engineState.snake.forEach(segment => {
+                ctx.fillRect(segment.x * TILE_SIZE, segment.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                ctx.strokeStyle = "black";
+                ctx.strokeRect(segment.x * TILE_SIZE, segment.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            });
+        }
+
+        // 2. Hàm gọi API lấy dữ liệu liên tục
+        async function fetchGameState() {
+            try {
+                const response = await fetch(`${SERVER_URL}/game`);
+                const engineState = await response.json();
+                drawGame(engineState);
+            } catch (error) {
+                console.error("Lỗi mất kết nối với Server:", error);
+                statusDisplay.innerText = "MẤT KẾT NỐI SERVER";
+            }
+        }
+
+        // 3. Hàm Bắt đầu game
+        async function startGame() {
+            await fetch(`${SERVER_URL}/game/start`, { method: "POST" });
+            if (!pollingInterval) {
+                pollingInterval = setInterval(fetchGameState, 80);
+            }
+        }
+
+        // 4. Hàm Reset game
+        async function resetGame() {
+            await fetch(`${SERVER_URL}/game/reset`, { method: "POST" });
+            fetchGameState();
+        }
+
+        // 5. Bắt sự kiện bàn phím gửi hướng đi
+        document.addEventListener("keydown", async (event) => {
+            let direction = null;
+
+            if (event.key === "ArrowUp" || event.key === "w" || event.key === "W") direction = "up";
+            if (event.key === "ArrowDown" || event.key === "s" || event.key === "S") direction = "down";
+            if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") direction = "left";
+            if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") direction = "right";
+
+            if (direction) {
+                event.preventDefault(); 
+                await fetch(`${SERVER_URL}/game/direction`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ direction: direction })
+                });
+            }
+        });
+
+        fetchGameState();
+    </script>
+</body>
+</html>
