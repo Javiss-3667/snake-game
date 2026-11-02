@@ -1,0 +1,12 @@
+const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const statusDisplay = document.getElementById("statusDisplay");
+        
+        const TILE_SIZE = 15;
+        
+        // THAY ĐỔI: Tự động trỏ API về đúng tên miền đang chạy giao diện
+        const SERVER_URL = window.location.origin; 
+        
+        let pollingInterval = null;
+
+        // ... (Giữ nguyên toàn bộ các hàm vẽ game và gọi API bên dưới)
